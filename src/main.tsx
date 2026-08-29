@@ -13,11 +13,15 @@ import "./styles.css";
 
 const links = {
   booking: "https://docs.google.com/forms/d/e/1FAIpQLSfJ86HO_YiK0rN2yhrdKltusymdy_FAjyeoxqT4TYTjXmyG1g/viewform?usp=header",
+  formPost: "https://docs.google.com/forms/d/e/1FAIpQLSfJ86HO_YiK0rN2yhrdKltusymdy_FAjyeoxqT4TYTjXmyG1g/formResponse",
   telegram: "https://t.me/barbarakaracharovaa",
   instagram: "https://www.instagram.com/barbarakaracharova.a",
   docs: "https://drive.google.com/drive/folders/1oplxtSNpSCYeQsyoCgzILNulmMn6hGnl?usp=sharing",
-  privacy: "privacy.html",
+  privacy: "personal-data-policy.html",
   offer: "offer.html",
+  personalDataConsent: "personal-data-consent.html",
+  mailingConsent: "mailing-consent.html",
+  cookies: "cookies.html",
 };
 
 const requests = [
@@ -126,6 +130,32 @@ const faq = [
       "Нет. Я не психиатр, не назначаю и не отменяю медикаменты, не подбираю лечение и не ставлю медицинские диагнозы.",
   },
 ];
+
+type BookingFormState = {
+  name: string;
+  age: string;
+  request: string;
+  therapyExperience: string;
+  therapyApproach: string;
+  currentTherapy: string;
+  expectations: string;
+  contact: string;
+  agreePersonalData: boolean;
+  agreeMailing: boolean;
+};
+
+const emptyBookingForm: BookingFormState = {
+  name: "",
+  age: "",
+  request: "",
+  therapyExperience: "",
+  therapyApproach: "",
+  currentTherapy: "",
+  expectations: "",
+  contact: "",
+  agreePersonalData: false,
+  agreeMailing: false,
+};
 
 const reveal = {
   hidden: { opacity: 0, y: 18, scale: 0.99 },
@@ -535,6 +565,64 @@ function FAQ() {
 }
 
 function Contacts() {
+  const [form, setForm] = useState<BookingFormState>(emptyBookingForm);
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  const updateTextField = (
+    field: Exclude<keyof BookingFormState, "agreePersonalData" | "agreeMailing">,
+    value: string,
+  ) => {
+    if (status !== "idle") {
+      setStatus("idle");
+    }
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateConsent = (field: "agreePersonalData" | "agreeMailing", value: boolean) => {
+    if (status !== "idle") {
+      setStatus("idle");
+    }
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const submitForm = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!form.agreePersonalData) {
+      setStatus("error");
+      return;
+    }
+
+    const data = new FormData();
+    data.append("entry.1439284067", form.name);
+    data.append("entry.1295082185", form.age);
+    data.append("entry.736478988", form.request);
+    data.append("entry.667097387", form.therapyExperience);
+    data.append("entry.593525964", form.therapyApproach);
+    data.append("entry.2097076034", form.currentTherapy);
+    data.append(
+      "entry.170392065",
+      `${form.expectations}\n\nСогласие на обработку ПДн: да\nСогласие на информационные сообщения: ${
+        form.agreeMailing ? "да" : "нет"
+      }`,
+    );
+    data.append("entry.532589034", form.contact);
+
+    setStatus("sending");
+
+    try {
+      await fetch(links.formPost, {
+        method: "POST",
+        mode: "no-cors",
+        body: data,
+      });
+      setStatus("sent");
+      setForm(emptyBookingForm);
+    } catch {
+      setStatus("error");
+    }
+  };
+
   return (
     <section id="contacts" className="section contacts">
       <FadeIn className="contact-copy">
@@ -546,9 +634,6 @@ function Contacts() {
           )}
         </p>
         <div className="contact-links">
-          <a href={links.booking} target="_blank" rel="noreferrer">
-            Записаться <ArrowUpRight size={18} />
-          </a>
           <a href={links.telegram} target="_blank" rel="noreferrer">
             Telegram <MessageCircle size={18} />
           </a>
@@ -557,10 +642,157 @@ function Contacts() {
           </a>
         </div>
       </FadeIn>
-      <FadeIn className="contact-portrait">
-        <img src="/images/varia-close.jpg" alt="Портрет Варвары Лузан" />
+      <FadeIn className="contact-form-card">
+        <form className="booking-form" onSubmit={submitForm}>
+          <div className="form-row two-columns">
+            <label>
+              <span>Ваше имя</span>
+              <input
+                required
+                value={form.name}
+                onChange={(event) => updateTextField("name", event.target.value)}
+                autoComplete="name"
+              />
+            </label>
+            <label>
+              <span>Сколько вам лет?</span>
+              <input
+                required
+                value={form.age}
+                onChange={(event) => updateTextField("age", event.target.value)}
+                inputMode="numeric"
+              />
+            </label>
+          </div>
+          <label>
+            <span>Способ связи с вами</span>
+            <input
+              required
+              value={form.contact}
+              onChange={(event) => updateTextField("contact", event.target.value)}
+              placeholder="Telegram, телефон или email"
+              autoComplete="email"
+            />
+          </label>
+          <label>
+            <span>Какой у вас запрос?</span>
+            <textarea
+              required
+              value={form.request}
+              onChange={(event) => updateTextField("request", event.target.value)}
+              rows={3}
+            />
+          </label>
+          <div className="form-row two-columns">
+            <label>
+              <span>Был ли опыт терапии?</span>
+              <input
+                value={form.therapyExperience}
+                onChange={(event) => updateTextField("therapyExperience", event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Если да, какой подход?</span>
+              <input
+                value={form.therapyApproach}
+                onChange={(event) => updateTextField("therapyApproach", event.target.value)}
+              />
+            </label>
+          </div>
+          <label>
+            <span>На данный момент вы находитесь в терапии?</span>
+            <input
+              required
+              value={form.currentTherapy}
+              onChange={(event) => updateTextField("currentTherapy", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>Что вы ждете от наших сессий?</span>
+            <textarea
+              required
+              value={form.expectations}
+              onChange={(event) => updateTextField("expectations", event.target.value)}
+              rows={3}
+            />
+          </label>
+          <label className="consent-line">
+            <input
+              required
+              type="checkbox"
+              checked={form.agreePersonalData}
+              onChange={(event) => updateConsent("agreePersonalData", event.target.checked)}
+            />
+            <span>
+              Я согласен(на) с{" "}
+              <a href={links.privacy} target="_blank" rel="noreferrer">
+                политикой обработки ПДн
+              </a>{" "}
+              и даю{" "}
+              <a href={links.personalDataConsent} target="_blank" rel="noreferrer">
+                согласие на обработку ПДн
+              </a>
+              .
+            </span>
+          </label>
+          <label className="consent-line">
+            <input
+              type="checkbox"
+              checked={form.agreeMailing}
+              onChange={(event) => updateConsent("agreeMailing", event.target.checked)}
+            />
+            <span>
+              Я согласен(на) получать информационные и организационные сообщения.{" "}
+              <a href={links.mailingConsent} target="_blank" rel="noreferrer">
+                Подробнее
+              </a>
+              .
+            </span>
+          </label>
+          <button className="button primary form-submit" type="submit" disabled={status === "sending"}>
+            {status === "sending" ? "Отправляю..." : "Оставить заявку"} <ArrowUpRight size={18} />
+          </button>
+          {status === "sent" && <p className="form-status">Заявка отправлена. Я свяжусь с вами в ближайшее время.</p>}
+          {status === "error" && (
+            <p className="form-status error">Проверьте согласие на обработку данных и попробуйте еще раз.</p>
+          )}
+        </form>
       </FadeIn>
     </section>
+  );
+}
+
+function CookieConsent() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setVisible(localStorage.getItem("cookie-consent") !== "accepted");
+  }, []);
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <aside className="cookie-banner" aria-label="Согласие на использование cookies">
+      <p>
+        {keep("Сайт использует cookies, чтобы корректно работать и запоминать ваше согласие. Продолжая пользоваться сайтом, вы соглашаетесь с использованием cookies.")}
+      </p>
+      <div>
+        <a href={links.cookies} target="_blank" rel="noreferrer">
+          Подробнее
+        </a>
+        <button
+          type="button"
+          onClick={() => {
+            localStorage.setItem("cookie-consent", "accepted");
+            setVisible(false);
+          }}
+        >
+          Принять
+        </button>
+      </div>
+    </aside>
   );
 }
 
@@ -608,8 +840,11 @@ function Footer() {
           признана экстремистской и запрещена в РФ.
         </p>
         <span className="legal-links">
-          <a href={links.privacy}>Политика конфиденциальности</a>
-          <a href={links.offer}>Оферта</a>
+          <a href={links.offer}>Договор-оферта</a>
+          <a href={links.privacy}>Политика обработки ПДн</a>
+          <a href={links.personalDataConsent}>Согласие на обработку ПДн</a>
+          <a href={links.mailingConsent}>Согласие на рассылку</a>
+          <a href={links.cookies}>Cookies</a>
         </span>
       </div>
       <span>© {new Date().getFullYear()} Варвара Лузан</span>
@@ -641,6 +876,7 @@ function App() {
         <Contacts />
       </main>
       <Footer />
+      <CookieConsent />
     </>
   );
 }
